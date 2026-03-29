@@ -1,6 +1,7 @@
-import { Request, Response } from 'express';
-import { GoogleAdsApi } from 'google-ads-api';
-import { getStoredRefreshToken } from './auth.controller';
+import { Request, Response } from "express";
+import { GoogleAdsApi } from "google-ads-api";
+import { getStoredRefreshToken } from "./auth.controller";
+import { handleGoogleAdsError } from "../helper/handleErrors";
 
 // Helper: Get Google Ads API client
 const getClient = () => {
@@ -11,117 +12,111 @@ const getClient = () => {
   });
 };
 
-// Helper: Get refresh token (DB or memory fallback via auth.controller)
+// Helper: Get refresh token
 const getRefreshToken = (): Promise<string | null> => getStoredRefreshToken();
 
 // Helper: Get all accessible customer IDs with details
-const getAllAccessibleCustomers = async (refreshToken: string): Promise<Array<{ id: string; descriptiveName?: string; isTestAccount?: boolean; isManager?: boolean; status?: string }>> => {
+const getAllAccessibleCustomers = async (refreshToken: string) => {
   const client = getClient();
 
-  // List all accessible customer accounts
+  // gett the root account the user directly authenticated with
   const response = await client.listAccessibleCustomers(refreshToken);
-  const customerIds = response.resource_names;
+  const rootCustomerIds = response.resource_names;
 
-  if (!customerIds || customerIds.length === 0) {
+  if (!rootCustomerIds || rootCustomerIds.length === 0) {
     return [];
   }
 
-  // Get details for each customer
-  const customers = [];
-  for (const resourceName of customerIds) {
-    const customerId = resourceName.replace('customers/', '').replace(/-/g, '');
+  const accessibleAccounts: any[] = [];
+
+  for (const rootId of rootCustomerIds) {
     try {
       const customer = client.Customer({
-        customer_id: customerId,
+        customer_id: rootId,
+        login_customer_id: rootId,
         refresh_token: refreshToken,
       });
+      // This signle query fetchs the account and all direct sub-accounts
 
-      // Query for customer details including manager status and account status
-      const details = await customer.query(`
+      const clients = await customer.query(`
         SELECT
-          customer.id,
-          customer.descriptive_name,
-          customer.test_account,
-          customer.manager,
-          customer.status
-        FROM customer
-        LIMIT 1
-      `);
+          customer_client.client_customer,
+          customer_client.descriptive_name,
+          customer_client.manager,
+          customer_client.test_account,
+          customer_client.status
+        FROM customer_client
+        WHERE customer_client.level <= 1
+          `);
 
-      const customerData = details[0] as any;
-      const isManager = customerData?.customer?.manager || false;
-      const status = customerData?.customer?.status || 'UNKNOWN';
-      const isEnabled = status === 'ENABLED';
+      for (const row of clients) {
+        const c = (row as any).customer_client;
 
-      // Only include non-manager accounts that are enabled
-      if (!isManager && isEnabled) {
-        customers.push({
-          id: customerId,
-          descriptiveName: customerData?.customer?.descriptive_name || `Account ${customerId}`,
-          isTestAccount: customerData?.customer?.test_account || false,
-          isManager: false,
-          status: status,
-        });
-      } else {
-        console.log(`Skipping account ${customerId}: ${isManager ? 'Manager account' : `Status: ${status}`}`);
+        // we only want to display enabled client account to the user
+
+        if (!c.manager && c.status === "ENABLED") {
+          const accountId = c.client_customerId.replace("customers/", "");
+
+          // avoid duplicates if multiple root accounts have access to the same client
+          if (!accessibleAccounts.find((a) => a.id === accountId)) {
+            accessibleAccounts.push({
+              id: accountId,
+              descriptiveName: c.descriptive_name || `Account ${accountId}`,
+              isTestAccount: c.test_account || false,
+              isManager: false,
+              status: c.status,
+              loginCustomerId: rootId,
+            });
+          }
+        }
       }
     } catch (error: any) {
-      console.error(`Error fetching details for account ${customerId}:`, error?.message || error);
+      console.error(
+        `Error fetching hierarchy for root account ${rootId}:`,
+        error?.message || error,
+      );
 
-      // Check if it's a specific known error
       const errorStr = JSON.stringify(error);
-      const isDeveloperTokenError = errorStr.includes('DEVELOPER_TOKEN_NOT_APPROVED') ||
-                                     errorStr.includes('only approved for use with test accounts');
-      const isManagerError = errorStr.includes('REQUESTED_METRICS_FOR_MANAGER');
-      const isDisabledError = errorStr.includes('not yet enabled or has been deactivated');
-
-      // Skip this account if it's a manager or disabled
-      if (isManagerError || isDisabledError) {
-        console.log(`Skipping account ${customerId}: ${isManagerError ? 'Manager account' : 'Disabled/Inactive'}`);
-        continue;
-      }
-
-      // For other errors (like developer token), still include but mark as restricted
-      if (isDeveloperTokenError) {
-        customers.push({
-          id: customerId,
-          descriptiveName: `⚠️ Restricted: ${customerId} (Test accounts only)`,
+      if (errorStr.includes("DEVELOPER_TOKEN_NOT_APPROVED")) {
+        accessibleAccounts.push({
+          id: rootId,
+          descriptiveName: `⚠️ Restricted Root: ${rootId}`,
           isTestAccount: false,
-          isManager: false,
-          status: 'RESTRICTED',
+          isManager: true,
+          status: "RESTRICTED",
+          loginCustomerId: rootId,
         });
       }
     }
   }
-
-  return customers;
+  return accessibleAccounts;
 };
 
 // Helper: Get the first accessible customer ID automatically
-const getDefaultCustomerId = async (refreshToken: string): Promise<string | null> => {
-  const customers = await getAllAccessibleCustomers(refreshToken);
-  return customers.length > 0 ? customers[0].id : null;
-};
+// const getDefaultCustomerId = async (refreshToken: string): Promise<string | null> => {
+//   const customers = await getAllAccessibleCustomers(refreshToken);
+//   return customers.length > 0 ? customers[0].id : null;
+// };
 
-// Helper: Get an authenticated customer instance (auto-discovers customer ID if not provided)
-const getCustomer = async (customerIdOverride?: string) => {
-  const refreshToken = await getRefreshToken();
-  if (!refreshToken) return null;
+// // Helper: Get an authenticated customer instance (auto-discovers customer ID if not provided)
+// const getCustomer = async (customerIdOverride?: string) => {
+//   const refreshToken = await getRefreshToken();
+//   if (!refreshToken) return null;
 
-  const client = getClient();
+//   const client = getClient();
 
-  let customerId = customerIdOverride;
-  if (!customerId) {
-    customerId = await getDefaultCustomerId(refreshToken) || undefined;
-  }
+//   let customerId = customerIdOverride;
+//   if (!customerId) {
+//     customerId = await getDefaultCustomerId(refreshToken) || undefined;
+//   }
 
-  if (!customerId) return null;
+//   if (!customerId) return null;
 
-  return client.Customer({
-    customer_id: customerId,
-    refresh_token: refreshToken,
-  });
-};
+//   return client.Customer({
+//     customer_id: customerId,
+//     refresh_token: refreshToken,
+//   });
+// };
 
 // GET /api/ads/accounts
 // Returns all accessible Google Ads accounts
@@ -129,7 +124,7 @@ export const getAccessibleAccounts = async (req: Request, res: Response) => {
   try {
     const refreshToken = await getRefreshToken();
     if (!refreshToken) {
-      res.status(401).json({ error: 'Google Ads account not connected.' });
+      res.status(401).json({ error: "Google Ads account not connected." });
       return;
     }
 
@@ -137,18 +132,20 @@ export const getAccessibleAccounts = async (req: Request, res: Response) => {
 
     if (customers.length === 0) {
       res.status(404).json({
-        error: 'No accessible client accounts found.',
-        errorType: 'NO_CLIENT_ACCOUNTS',
-        message: 'Only manager accounts or inactive accounts were found. Google Ads API requires client accounts (non-manager accounts) to retrieve metrics. Please create or use a client account under your manager account.',
+        error: "No accessible client accounts found.",
+        errorType: "NO_CLIENT_ACCOUNTS",
+        message:
+          "Only manager accounts or inactive accounts were found. Please use an active client account.",
       });
       return;
     }
 
     res.json({ success: true, data: customers });
-
   } catch (error: any) {
-    console.error('Google Ads Accounts Error:', error);
-    res.status(500).json({ error: `Failed to fetch accounts: ${error?.message || JSON.stringify(error)}` });
+    console.error("Google Ads Accounts Error:", error);
+    res
+      .status(500)
+      .json({ error: `Failed to fetch accounts: ${error?.message}` });
   }
 };
 
@@ -156,14 +153,22 @@ export const getAccessibleAccounts = async (req: Request, res: Response) => {
 // Returns per-campaign metrics for the last 30 days
 export const getCampaignAnalytics = async (req: Request, res: Response) => {
   try {
-    const { customerId } = req.params;
-    const customerIdString = Array.isArray(customerId) ? customerId[0] : customerId;
+    const customerId = Array.isArray(req.params.customerId) ? req.params.customerId[0] : req.params.customerId;
+    const loginCustomerId = Array.isArray(req.query.loginCustomerId) ? (req.query.loginCustomerId as string[])[0] : (req.query.loginCustomerId as string); // Extracted from URL query
+    
+    const refreshToken = await getRefreshToken();
 
-    const customer = await getCustomer(customerIdString);
-    if (!customer) {
-      res.status(401).json({ error: 'Google Ads account not connected or no accessible accounts found.' });
+    if (!refreshToken) {
+      res.status(401).json({ error: "Not connected" });
       return;
     }
+
+    const client = getClient();
+    const customer = client.Customer({
+      customer_id: customerId,
+      login_customer_id: loginCustomerId || customerId, // Apply the MCC context
+      refresh_token: refreshToken,
+    });
 
     const campaigns = await customer.query(`
       SELECT 
@@ -182,65 +187,30 @@ export const getCampaignAnalytics = async (req: Request, res: Response) => {
     `);
 
     res.json({ success: true, data: campaigns });
-
   } catch (error: any) {
-    console.error('Google Ads API Error:', error);
-
-    // Check for specific error types
-    const errorStr = JSON.stringify(error);
-    const isDeveloperTokenError = errorStr.includes('DEVELOPER_TOKEN_NOT_APPROVED') ||
-                                   errorStr.includes('only approved for use with test accounts');
-    const isManagerError = errorStr.includes('REQUESTED_METRICS_FOR_MANAGER');
-    const isDisabledError = errorStr.includes('not yet enabled or has been deactivated');
-
-    if (isManagerError) {
-      res.status(400).json({
-        error: 'Cannot fetch metrics for manager account',
-        errorType: 'MANAGER_ACCOUNT',
-        message: 'This is a manager account. Google Ads API requires you to query client accounts (sub-accounts) instead. Please select a client account from the dropdown.',
-        details: error?.message || JSON.stringify(error)
-      });
-      return;
-    }
-
-    if (isDisabledError) {
-      res.status(400).json({
-        error: 'Account is disabled or inactive',
-        errorType: 'ACCOUNT_DISABLED',
-        message: 'This account is not yet enabled or has been deactivated. Please use an active account.',
-        details: error?.message || JSON.stringify(error)
-      });
-      return;
-    }
-
-    if (isDeveloperTokenError) {
-      res.status(403).json({
-        error: 'Developer token restricted to test accounts only',
-        errorType: 'DEVELOPER_TOKEN_RESTRICTED',
-        message: 'Your Google Ads developer token is in test mode and can only access test accounts. Please use a test account or apply for Basic/Standard access.',
-        details: error?.message || JSON.stringify(error)
-      });
-      return;
-    }
-
-    res.status(500).json({ error: `Failed to fetch campaigns: ${error?.message || JSON.stringify(error)}` });
+    handleGoogleAdsError(error, res);
   }
 };
-
 // GET /api/ads/overview/:customerId
 // Returns aggregated totals + daily time-series for charts
 export const getCampaignOverview = async (req: Request, res: Response) => {
   try {
-    const { customerId } = req.params;
-    const customerIdString = Array.isArray(customerId) ? customerId[0] : customerId;
+    const customerId = Array.isArray(req.params.customerId) ? req.params.customerId[0] : req.params.customerId;
+    const loginCustomerId = Array.isArray(req.query.loginCustomerId) ? (req.query.loginCustomerId as string[])[0] : (req.query.loginCustomerId as string); // Extracted from URL query
+    const refreshToken = await getRefreshToken();
 
-    const customer = await getCustomer(customerIdString);
-    if (!customer) {
-      res.status(401).json({ error: 'Google Ads account not connected or no accessible accounts found.' });
+    if (!refreshToken) {
+      res.status(401).json({ error: "Not connected" });
       return;
     }
 
-    // 1. Aggregated totals for the overview cards
+    const client = getClient();
+    const customer = client.Customer({
+      customer_id: customerId,
+      login_customer_id: loginCustomerId || customerId, // Apply the MCC context
+      refresh_token: refreshToken,
+    });
+
     const totals = await customer.query(`
       SELECT 
         metrics.clicks,
@@ -251,7 +221,6 @@ export const getCampaignOverview = async (req: Request, res: Response) => {
       WHERE segments.date DURING LAST_30_DAYS
     `);
 
-    // 2. Daily time-series for charts
     const daily = await customer.query(`
       SELECT 
         segments.date,
@@ -264,11 +233,10 @@ export const getCampaignOverview = async (req: Request, res: Response) => {
       ORDER BY segments.date ASC
     `);
 
-    // Aggregate totals from the response
-    let totalClicks = 0;
-    let totalImpressions = 0;
-    let totalConversions = 0;
-    let totalCostMicros = 0;
+    let totalClicks = 0,
+      totalImpressions = 0,
+      totalConversions = 0,
+      totalCostMicros = 0;
 
     if (totals && totals.length > 0) {
       for (const row of totals) {
@@ -279,13 +247,12 @@ export const getCampaignOverview = async (req: Request, res: Response) => {
       }
     }
 
-    // Format daily data for charts
     const dailyData = (daily || []).map((row: any) => ({
-      date: row.segments?.date || '',
+      date: row.segments?.date || "",
       clicks: Number(row.metrics?.clicks || 0),
       impressions: Number(row.metrics?.impressions || 0),
       conversions: Number(row.metrics?.conversions || 0),
-      cost: Number(row.metrics?.cost_micros || 0) / 1_000_000, // Convert micros to dollars
+      cost: Number(row.metrics?.cost_micros || 0) / 1_000_000,
     }));
 
     res.json({
@@ -300,47 +267,7 @@ export const getCampaignOverview = async (req: Request, res: Response) => {
         daily: dailyData,
       },
     });
-
   } catch (error: any) {
-    console.error('Google Ads Overview Error:', error);
-
-    // Check for specific error types
-    const errorStr = JSON.stringify(error);
-    const isDeveloperTokenError = errorStr.includes('DEVELOPER_TOKEN_NOT_APPROVED') ||
-                                   errorStr.includes('only approved for use with test accounts');
-    const isManagerError = errorStr.includes('REQUESTED_METRICS_FOR_MANAGER');
-    const isDisabledError = errorStr.includes('not yet enabled or has been deactivated');
-
-    if (isManagerError) {
-      res.status(400).json({
-        error: 'Cannot fetch metrics for manager account',
-        errorType: 'MANAGER_ACCOUNT',
-        message: 'This is a manager account. Google Ads API requires you to query client accounts (sub-accounts) instead. Please select a client account from the dropdown.',
-        details: error?.message || JSON.stringify(error)
-      });
-      return;
-    }
-
-    if (isDisabledError) {
-      res.status(400).json({
-        error: 'Account is disabled or inactive',
-        errorType: 'ACCOUNT_DISABLED',
-        message: 'This account is not yet enabled or has been deactivated. Please use an active account.',
-        details: error?.message || JSON.stringify(error)
-      });
-      return;
-    }
-
-    if (isDeveloperTokenError) {
-      res.status(403).json({
-        error: 'Developer token restricted to test accounts only',
-        errorType: 'DEVELOPER_TOKEN_RESTRICTED',
-        message: 'Your Google Ads developer token is in test mode and can only access test accounts. Please use a test account or apply for Basic/Standard access.',
-        details: error?.message || JSON.stringify(error)
-      });
-      return;
-    }
-
-    res.status(500).json({ error: `Failed to fetch overview: ${error?.message || JSON.stringify(error)}` });
+    handleGoogleAdsError(error, res);
   }
 };
