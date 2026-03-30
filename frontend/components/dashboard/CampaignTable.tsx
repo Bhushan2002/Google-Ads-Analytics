@@ -81,7 +81,7 @@ export default function CampaignTable({ campaigns }: CampaignTableProps) {
               <th className="text-right py-3 px-4 font-medium text-gray-500 text-xs uppercase tracking-wider">CTR</th>
               <th className="text-right py-3 px-4 font-medium text-gray-500 text-xs uppercase tracking-wider">Avg CPC</th>
               <th className="text-right py-3 px-4 font-medium text-gray-500 text-xs uppercase tracking-wider">Cost</th>
-              <th className="text-right py-3 px-4 font-medium text-gray-500 text-xs uppercase tracking-wider w-28">Trend</th>
+
             </tr>
           </thead>
           <tbody>
@@ -115,20 +115,7 @@ export default function CampaignTable({ campaigns }: CampaignTableProps) {
                   <td className="py-3 px-4 text-right font-medium text-gray-700">{(ctr * 100).toFixed(2)}%</td>
                   <td className="py-3 px-4 text-right font-medium text-gray-700">${avgCpc.toFixed(2)}</td>
                   <td className="py-3 px-4 text-right font-medium text-gray-700">${formatNumber(cost)}</td>
-                  <td className="py-3 px-4">
-                    <div className="h-6 w-24 ml-auto">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={sparkData}>
-                          <Bar
-                            dataKey="value"
-                            fill="#3b82f6"
-                            radius={[1, 1, 0, 0]}
-                            animationDuration={800}
-                          />
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </div>
-                  </td>
+                 
                 </tr>
               )
             })}

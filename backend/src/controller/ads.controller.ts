@@ -408,3 +408,50 @@ export const getAdGroupsAnalytics = async (req: Request, res: Response) => {
     handleGoogleAdsError(error, res);
   }
 };
+// GET /api/ads/assets/:customerId
+// Returns assets across the account
+export const getAssetsAnalytics = async (req: Request, res: Response) => {
+  try {
+    const customerId = Array.isArray(req.params.customerId) ? req.params.customerId[0] : req.params.customerId;
+    const loginCustomerId = Array.isArray(req.query.loginCustomerId) ? (req.query.loginCustomerId as string[])[0] : (req.query.loginCustomerId as string);
+    const refreshToken = await getRefreshToken();
+
+    if (!refreshToken) {
+      res.status(401).json({ error: "Not connected" });
+      return;
+    }
+
+    const client = getClient();
+    const customer = client.Customer({
+      customer_id: customerId,
+      login_customer_id: loginCustomerId || customerId,
+      refresh_token: refreshToken,
+    });
+
+    // Query ad_group_ad_asset_view to get metrics of assets linked to ads
+    const assets = await customer.query(`
+      SELECT
+        ad_group_ad_asset_view.ad_group_ad,
+        ad_group_ad_asset_view.field_type,
+        ad_group_ad_asset_view.performance_label,
+        asset.id,
+        asset.type,
+        asset.name,
+        asset.text_asset.text,
+        asset.image_asset.full_size.url,
+        metrics.clicks,
+        metrics.impressions,
+        metrics.conversions,
+        metrics.conversions_value,
+        metrics.cost_micros
+      FROM ad_group_ad_asset_view
+      WHERE segments.date DURING LAST_30_DAYS
+      ORDER BY metrics.clicks DESC
+      LIMIT 100
+    `);
+
+    res.json({ success: true, data: assets });
+  } catch (error: any) {
+    handleGoogleAdsError(error, res);
+  }
+};

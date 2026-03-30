@@ -65,6 +65,7 @@ export default function DashboardView({
   const [keywords, setKeywords] = useState<any[]>([]);
   const [ads, setAds] = useState<any[]>([]);
   const [adGroups, setAdGroups] = useState<any[]>([]);
+  const [assets, setAssets] = useState<any[]>([]);
   const [selectedAdGroupId, setSelectedAdGroupId] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -121,15 +122,17 @@ export default function DashboardView({
     const keywordsUrl = `${API_BASE}/ads/keywords/${id}?loginCustomerId=${loginCustomerId}`;
     const adsUrl = `${API_BASE}/ads/ads/${id}?loginCustomerId=${loginCustomerId}`;
     const adGroupsUrl = `${API_BASE}/ads/ad-groups/${id}?loginCustomerId=${loginCustomerId}`;
+    const assetsUrl = `${API_BASE}/ads/assets/${id}?loginCustomerId=${loginCustomerId}`;
 
     try {
-      const [overviewRes, campaignsRes, keywordsRes, adsRes, adGroupsRes] =
+      const [overviewRes, campaignsRes, keywordsRes, adsRes, adGroupsRes, assetsRes] =
         await Promise.all([
           fetch(overviewUrl),
           fetch(campaignsUrl),
           fetch(keywordsUrl),
           fetch(adsUrl),
           fetch(adGroupsUrl),
+          fetch(assetsUrl),
         ]);
 
       const overviewJson = await overviewRes.json();
@@ -137,6 +140,7 @@ export default function DashboardView({
       const keywordsJson = await keywordsRes.json();
       const adsJson = await adsRes.json();
       const adGroupsJson = await adGroupsRes.json();
+      const assetsJson = await assetsRes.json();
 
       if (!overviewRes.ok || !overviewJson.success) {
         setErrorType(overviewJson.errorType || null);
@@ -160,6 +164,7 @@ export default function DashboardView({
       setKeywords(keywordsJson.data || []);
       setAds(adsJson.data || []);
       setAdGroups(adGroupsJson.data || []);
+      setAssets(assetsJson.data || []);
     } catch (err: any) {
       console.error("Dashboard fetch error:", err);
       setError(err.message || "Failed to load data");
@@ -491,7 +496,7 @@ export default function DashboardView({
                     daily={overview.daily}
                   /> */}
                 </div>
-                <AssetGroupTable />
+                <AssetGroupTable assets={assets} />
                 <div className="grid grid-cols-2 gap-4  ">
                   <ClicksChart daily={overview.daily} />
                   <ImpressionsChart daily={overview.daily} />
