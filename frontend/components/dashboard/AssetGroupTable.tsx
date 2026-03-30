@@ -1,25 +1,132 @@
 import React from 'react';
-import { ArrowDown, Pencil } from 'lucide-react';
+import { ArrowDown } from 'lucide-react';
 
-export default function AssetGroupTable() {
-  const assets = [
-    { type: 'text', text: 'AI Content Creation Tool', level: 'Asset group', status1: 'Pending', status2: 'Under review', assetType: 'Headline', date: 'Mar 31, 2026,', time: '12:01 AM', conv: '0.00', convVal: '0.00', impr: '0', clicks: '0', cost: '₹0.00' },
-    { type: 'text', text: 'Social Media Marketing Tool', level: 'Asset group', status1: 'Pending', status2: 'Under review', assetType: 'Headline', date: 'Mar 31, 2026,', time: '12:01 AM', conv: '0.00', convVal: '0.00', impr: '0', clicks: '0', cost: '₹0.00' },
-    { type: 'text', text: 'Creatosaurus', editable: true, level: 'Asset group', status1: 'Pending', status2: 'Under review', assetType: 'Headline', date: 'Mar 31, 2026,', time: '12:01 AM', conv: '0.00', convVal: '0.00', impr: '0', clicks: '0', cost: '₹0.00' },
-    { type: 'text', text: 'AI Content Creation & Social Media Marketing Tool', level: 'Asset group', status1: 'Pending', status2: 'Under review', assetType: 'Long headline', date: 'Mar 31, 2026,', time: '12:01 AM', conv: '0.00', convVal: '0.00', impr: '0', clicks: '0', cost: '₹0.00' },
-    { type: 'text', text: 'Creatosaurus helps eliminate the busywork, so you can focus on storytelling.', level: 'Asset group', status1: 'Pending', status2: 'Under review', assetType: 'Description', date: 'Mar 31, 2026,', time: '12:01 AM', conv: '0.00', convVal: '0.00', impr: '0', clicks: '0', cost: '₹0.00' },
-    { type: 'image', imgUrl: 'https://placehold.co/100x100/e2e8f0/64748b?text=Img', dims: '856 × 856', level: 'Asset group', status1: 'Pending', status2: 'Under review', assetType: 'Square image', date: 'Mar 31, 2026,', time: '12:01 AM', conv: '0.00', convVal: '0.00', impr: '0', clicks: '0', cost: '₹0.00' },
-    { type: 'image', imgUrl: 'https://placehold.co/160x85/e2e8f0/64748b?text=Img', dims: '1640 × 856', level: 'Asset group', status1: 'Pending', status2: 'Under review', assetType: 'Horizontal image', date: 'Mar 31, 2026,', time: '12:01 AM', conv: '0.00', convVal: '0.00', impr: '0', clicks: '0', cost: '₹0.00' },
-    { type: 'text', text: 'Creatosaurus', level: 'Campaign', status1: 'Pending', status2: 'Under review', assetType: 'Business name', date: 'Mar 31, 2026,', time: '12:01 AM', conv: '0.00', convVal: '0.00', impr: '0', clicks: '0', cost: '₹0.00' },
-    { type: 'image', imgUrl: 'https://placehold.co/100x100/1e293b/ffffff?text=Logo', dims: '140 × 140', level: 'Campaign', status1: 'Pending', status2: 'Under review', assetType: 'Logo', date: 'Mar 31, 2026,', time: '12:01 AM', conv: '0.00', convVal: '0.00', impr: '0', clicks: '0', cost: '₹0.00' },
-  ];
+type AssetGroupAsset = {
+  id?: string | number;
+  name?: string;
+  type?: string;
+  fieldType?: string;
+  status?: string;
+  performanceLabel?: string;
+  assetGroupId?: string | number;
+  assetGroupName?: string;
+  assetGroupStatus?: string;
+  text?: string;
+  imageUrl?: string;
+  imageWidth?: number;
+  imageHeight?: number;
+  lastUpdated?: string;
+  metrics: {
+    clicks: number;
+    impressions: number;
+    conversions: number;
+    conversionValue: number;
+    cost: number;
+  };
+};
+
+interface AssetGroupTableProps {
+  assets: AssetGroupAsset[];
+  loading?: boolean;
+}
+
+const formatNumber = (value: number) =>
+  Number.isFinite(value) ? value.toLocaleString() : '0';
+
+const formatCurrency = (value: number) =>
+  Number.isFinite(value)
+    ? value.toLocaleString(undefined, {
+        style: 'currency',
+        currency: 'USD',
+        minimumFractionDigits: 2,
+      })
+    : '$0.00';
+
+const formatDateTime = (value?: string) => {
+  if (!value) return '—';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '—';
+  return date.toLocaleString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+};
+
+const getStatusColor = (status?: string) => {
+  if (status === 'ENABLED') return 'bg-green-500';
+  if (status === 'PAUSED') return 'bg-amber-500';
+  if (status === 'REMOVED') return 'bg-gray-400';
+  return 'bg-gray-300';
+};
+
+const LoadingRows = () => (
+  <tbody>
+    {[...Array(5)].map((_, idx) => (
+      <tr key={idx} className="border-b border-gray-100">
+        <td className="py-4 px-4">
+          <div className="w-2.5 h-2.5 rounded-full bg-gray-200 animate-pulse" />
+        </td>
+        <td className="py-4 px-2">
+          <div className="h-4 bg-gray-200 rounded w-48 animate-pulse" />
+        </td>
+        <td className="py-4 px-4">
+          <div className="h-4 bg-gray-200 rounded w-28 animate-pulse" />
+        </td>
+        <td className="py-4 px-4">
+          <div className="h-4 bg-gray-200 rounded w-24 animate-pulse" />
+        </td>
+        <td className="py-4 px-4">
+          <div className="h-4 bg-gray-200 rounded w-20 animate-pulse" />
+        </td>
+        <td className="py-4 px-4">
+          <div className="h-4 bg-gray-200 rounded w-32 animate-pulse" />
+        </td>
+        <td className="py-4 px-4 text-right">
+          <div className="h-4 bg-gray-200 rounded w-16 ml-auto animate-pulse" />
+        </td>
+        <td className="py-4 px-4 text-right">
+          <div className="h-4 bg-gray-200 rounded w-16 ml-auto animate-pulse" />
+        </td>
+        <td className="py-4 px-4 text-right">
+          <div className="h-4 bg-gray-200 rounded w-16 ml-auto animate-pulse" />
+        </td>
+        <td className="py-4 px-4 text-right">
+          <div className="h-4 bg-gray-200 rounded w-16 ml-auto animate-pulse" />
+        </td>
+        <td className="py-4 px-4 text-right">
+          <div className="h-4 bg-gray-200 rounded w-16 ml-auto animate-pulse" />
+        </td>
+      </tr>
+    ))}
+  </tbody>
+);
+
+export default function AssetGroupTable({
+  assets,
+  loading = false,
+}: AssetGroupTableProps) {
+  const hasAssets = assets && assets.length > 0;
 
   return (
     <div className="w-full border border-gray-200 rounded-lg bg-white shadow-sm overflow-hidden font-sans">
-      {/* Horizontal scrolling wrapper for smaller screens */}
+      <div className="p-4 border-b border-gray-100 flex items-center justify-between">
+        <div>
+          <h3 className="text-base font-semibold text-gray-900">
+            Asset Group Assets
+          </h3>
+          <p className="text-xs text-gray-500">
+            Live data pulled from your Google Ads account
+          </p>
+        </div>
+        <div className="text-xs text-gray-400">
+          Last 30 days · Test account ready
+        </div>
+      </div>
       <div className="overflow-x-auto">
         <table className="w-full text-left border-collapse whitespace-nowrap min-w-[1200px]">
-          {/* Table Header */}
           <thead>
             <tr className="border-b border-gray-300 bg-white text-xs text-gray-600 font-medium">
               <th className="py-3 px-4 w-12 text-center">
@@ -40,69 +147,113 @@ export default function AssetGroupTable() {
             </tr>
           </thead>
 
-          {/* Table Body */}
-          <tbody className="text-sm text-gray-700">
-            {assets.map((asset, index) => (
-              <tr 
-                key={index} 
-                className="border-b border-gray-100 hover:bg-gray-50 transition-colors group"
-              >
-                {/* Status Dot */}
-                <td className="py-4 px-4 align-top text-center pt-5">
-                  <div className="w-2.5 h-2.5 rounded-full bg-green-600 inline-block"></div>
+          {loading ? (
+            <LoadingRows />
+          ) : !hasAssets ? (
+            <tbody>
+              <tr>
+                <td
+                  colSpan={11}
+                  className="py-10 px-4 text-center text-gray-400 text-sm"
+                >
+                  No asset data found for this account.
                 </td>
-
-                {/* Asset Content (Text or Image) */}
-                <td className="py-4 px-2 align-top max-w-[280px] whitespace-normal">
-                  <div className="flex items-center gap-2">
-                    {asset.type === 'text' ? (
-                      <span className="text-gray-800 leading-snug">{asset.text}</span>
-                    ) : (
-                      <div className="flex items-center gap-3">
-                        <img 
-                          src={asset.imgUrl} 
-                          alt="Asset preview" 
-                          className="object-contain bg-gray-100 border border-gray-200"
-                          style={{ maxHeight: '48px', maxWidth: '80px' }}
-                        />
-                        <span className="text-gray-500 text-xs">{asset.dims}</span>
-                      </div>
-                    )}
-                    {/* Optional Edit Icon */}
-                    {asset.editable && (
-                      <Pencil className="w-3.5 h-3.5 text-gray-400 cursor-pointer hover:text-gray-600" />
-                    )}
-                  </div>
-                </td>
-
-                {/* Other Columns */}
-                <td className="py-4 px-4 align-top pt-5 text-gray-600">{asset.level}</td>
-                
-                <td className="py-4 px-4 align-top pt-4">
-                  <div className="flex flex-col text-gray-600 text-xs">
-                    <span>{asset.status1}</span>
-                    <span>{asset.status2}</span>
-                  </div>
-                </td>
-                
-                <td className="py-4 px-4 align-top pt-5 text-gray-600">{asset.assetType}</td>
-                
-                <td className="py-4 px-4 align-top pt-4 text-xs text-gray-600">
-                  <div className="flex flex-col">
-                    <span>{asset.date}</span>
-                    <span>{asset.time}</span>
-                  </div>
-                </td>
-                
-                {/* Metrics */}
-                <td className="py-4 px-4 align-top pt-5 text-right text-gray-600">{asset.conv}</td>
-                <td className="py-4 px-4 align-top pt-5 text-right text-gray-600">{asset.convVal}</td>
-                <td className="py-4 px-4 align-top pt-5 text-right text-gray-600">{asset.impr}</td>
-                <td className="py-4 px-4 align-top pt-5 text-right text-gray-600">{asset.clicks}</td>
-                <td className="py-4 px-4 align-top pt-5 text-right text-gray-600">{asset.cost}</td>
               </tr>
-            ))}
-          </tbody>
+            </tbody>
+          ) : (
+            <tbody className="text-sm text-gray-700">
+              {assets.map((asset, index) => {
+                const indicator = getStatusColor(asset.status);
+                const dims =
+                  asset.imageWidth && asset.imageHeight
+                    ? `${asset.imageWidth} × ${asset.imageHeight}`
+                    : null;
+
+                return (
+                  <tr
+                    key={String(asset.id ?? index)}
+                    className="border-b border-gray-100 hover:bg-gray-50 transition-colors group"
+                  >
+                    <td className="py-4 px-4 align-top text-center pt-5">
+                      <div
+                        className={`w-2.5 h-2.5 rounded-full inline-block ${indicator}`}
+                      ></div>
+                    </td>
+
+                    <td className="py-4 px-2 align-top max-w-[280px] whitespace-normal">
+                      <div className="flex items-center gap-3">
+                        {asset.imageUrl ? (
+                          <>
+                            <img
+                              src={asset.imageUrl}
+                              alt={asset.name || 'Asset preview'}
+                              className="object-contain bg-gray-100 border border-gray-200"
+                              style={{ maxHeight: '48px', maxWidth: '80px' }}
+                            />
+                            <div className="flex flex-col">
+                              <span className="text-gray-800 leading-snug">
+                                {asset.name || 'Image asset'}
+                              </span>
+                              {dims && (
+                                <span className="text-gray-500 text-xs">
+                                  {dims}
+                                </span>
+                              )}
+                            </div>
+                          </>
+                        ) : (
+                          <span className="text-gray-800 leading-snug">
+                            {asset.text || asset.name || 'Text asset'}
+                          </span>
+                        )}
+                      </div>
+                    </td>
+
+                    <td className="py-4 px-4 align-top pt-5 text-gray-600">
+                      {asset.assetGroupName || 'Asset group'}
+                    </td>
+
+                    <td className="py-4 px-4 align-top pt-4">
+                      <div className="flex flex-col text-gray-600 text-xs">
+                        <span className="font-medium">
+                          {asset.status || 'Unknown'}
+                        </span>
+                        {asset.performanceLabel && (
+                          <span className="text-gray-500">
+                            {asset.performanceLabel}
+                          </span>
+                        )}
+                      </div>
+                    </td>
+
+                    <td className="py-4 px-4 align-top pt-5 text-gray-600">
+                      {asset.fieldType || asset.type || '—'}
+                    </td>
+
+                    <td className="py-4 px-4 align-top pt-4 text-xs text-gray-600">
+                      {formatDateTime(asset.lastUpdated)}
+                    </td>
+
+                    <td className="py-4 px-4 align-top pt-5 text-right text-gray-600">
+                      {formatNumber(asset.metrics?.conversions || 0)}
+                    </td>
+                    <td className="py-4 px-4 align-top pt-5 text-right text-gray-600">
+                      {formatCurrency(asset.metrics?.conversionValue || 0)}
+                    </td>
+                    <td className="py-4 px-4 align-top pt-5 text-right text-gray-600">
+                      {formatNumber(asset.metrics?.impressions || 0)}
+                    </td>
+                    <td className="py-4 px-4 align-top pt-5 text-right text-gray-600">
+                      {formatNumber(asset.metrics?.clicks || 0)}
+                    </td>
+                    <td className="py-4 px-4 align-top pt-5 text-right text-gray-600">
+                      {formatCurrency(asset.metrics?.cost || 0)}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          )}
         </table>
       </div>
     </div>

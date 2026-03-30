@@ -16,15 +16,11 @@ const connectDatabase = async () => {
         return;
     }
     try {
-        await mongoose_1.default.connect(url, {
-            serverSelectionTimeoutMS: 10000,
-        });
+        await mongoose_1.default.connect(url);
         console.log("✅ Database Connected");
     }
     catch (e) {
         console.error("❌ Database Connection Failed:", e.message || e);
-        console.error("   → Go to MongoDB Atlas → Network Access → Add IP Address → Allow Access From Anywhere (0.0.0.0/0)");
-        console.error("   → Server will keep running but DB-dependent features won't work.");
     }
 };
 exports.connectDatabase = connectDatabase;

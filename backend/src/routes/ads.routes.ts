@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { getAuthUrl, handleGoogleCallback, checkConnection, disconnectAccount } from '../controller/auth.controller';
-import { getCampaignAnalytics, getCampaignOverview, getAccessibleAccounts, getAdGroups, getKeywords, getAds } from '../controller/ads.controller';
+import { getCampaignAnalytics, getCampaignOverview, getAccessibleAccounts, getAdGroups, getKeywords, getAds, getAssetGroupAssets } from '../controller/ads.controller';
 
 
 const router = Router();
@@ -21,5 +21,6 @@ router.get('/ads/overview/:customerId', getCampaignOverview);
 router.get('/ads/ad-groups/:customerId', getAdGroups);
 router.get('/ads/keywords/:customerId', getKeywords);
 router.get('/ads/ads/:customerId', getAds);
+router.get('/ads/assets/:customerId', getAssetGroupAssets);
 
 export default router;

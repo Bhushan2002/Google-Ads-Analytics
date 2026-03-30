@@ -481,3 +481,84 @@ export const getAds = async (req: Request, res: Response) => {
     handleGoogleAdsError(error, res);
   }
 };
+
+// GET /api/ads/assets/:customerId
+// Returns asset group assets with performance metrics (last 30 days)
+export const getAssetGroupAssets = async (req: Request, res: Response) => {
+  try {
+    const customerId = Array.isArray(req.params.customerId)
+      ? req.params.customerId[0]
+      : req.params.customerId;
+    const loginCustomerId = Array.isArray(req.query.loginCustomerId)
+      ? (req.query.loginCustomerId as string[])[0]
+      : (req.query.loginCustomerId as string);
+
+    const refreshToken = await getRefreshToken();
+
+    if (!refreshToken) {
+      res.status(401).json({ error: "Not connected" });
+      return;
+    }
+
+    const client = getClient();
+    const customer = client.Customer({
+      customer_id: customerId,
+      login_customer_id: loginCustomerId || customerId,
+      refresh_token: refreshToken,
+    });
+
+    const assets = await customer.query(`
+      SELECT
+        asset_group.id,
+        asset_group.name,
+        asset_group.status,
+        asset_group_asset.field_type,
+        asset_group_asset.status,
+        asset_group_asset.performance_label,
+        asset.id,
+        asset.name,
+        asset.type,
+        asset.text_asset.text,
+        asset.image_asset.full_size.url,
+        asset.image_asset.full_size.width_pixels,
+        asset.image_asset.full_size.height_pixels,
+        asset.last_modified_time,
+        metrics.impressions,
+        metrics.clicks,
+        metrics.conversions,
+        metrics.conversions_value,
+        metrics.cost_micros
+      FROM asset_group_asset
+      WHERE segments.date DURING LAST_30_DAYS
+      ORDER BY metrics.impressions DESC
+    `);
+
+    const formattedAssets = assets.map((row: any) => ({
+      id: row.asset?.id,
+      name: row.asset?.name,
+      type: row.asset?.type,
+      fieldType: row.asset_group_asset?.field_type,
+      status: row.asset_group_asset?.status,
+      performanceLabel: row.asset_group_asset?.performance_label,
+      assetGroupId: row.asset_group?.id,
+      assetGroupName: row.asset_group?.name,
+      assetGroupStatus: row.asset_group?.status,
+      text: row.asset?.text_asset?.text,
+      imageUrl: row.asset?.image_asset?.full_size?.url,
+      imageWidth: row.asset?.image_asset?.full_size?.width_pixels,
+      imageHeight: row.asset?.image_asset?.full_size?.height_pixels,
+      lastUpdated: row.asset?.last_modified_time,
+      metrics: {
+        clicks: Number(row.metrics?.clicks || 0),
+        impressions: Number(row.metrics?.impressions || 0),
+        conversions: Number(row.metrics?.conversions || 0),
+        conversionValue: Number(row.metrics?.conversions_value || 0),
+        cost: Number(row.metrics?.cost_micros || 0) / 1_000_000,
+      },
+    }));
+
+    res.json({ success: true, data: formattedAssets });
+  } catch (error: any) {
+    handleGoogleAdsError(error, res);
+  }
+};
