@@ -29,7 +29,8 @@ const getAllAccessibleCustomers = async (refreshToken: string) => {
 
   const accessibleAccounts: any[] = [];
 
-  for (const rootId of rootCustomerIds) {
+  for (const rootResourceName of rootCustomerIds) {
+    const rootId = rootResourceName.replace("customers/", "");
     try {
       const customer = client.Customer({
         customer_id: rootId,
@@ -54,8 +55,9 @@ const getAllAccessibleCustomers = async (refreshToken: string) => {
 
         // we only want to display enabled client account to the user
 
-        if (!c.manager && c.status === "ENABLED") {
-          const accountId = c.client_customerId.replace("customers/", "");
+        // if (!c.manager && c.status === "ENABLED") {
+          if (!c.manager ) {
+          const accountId = c.client_customer.replace("customers/", "");
 
           // avoid duplicates if multiple root accounts have access to the same client
           if (!accessibleAccounts.find((a) => a.id === accountId)) {
@@ -72,7 +74,7 @@ const getAllAccessibleCustomers = async (refreshToken: string) => {
       }
     } catch (error: any) {
       console.error(
-        `Error fetching hierarchy for root account ${rootId}:`,
+        `Error fetching hierarchy for root account ${rootResourceName}:`,
         error?.message || error,
       );
 
