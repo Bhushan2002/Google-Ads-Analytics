@@ -273,3 +273,211 @@ export const getCampaignOverview = async (req: Request, res: Response) => {
     handleGoogleAdsError(error, res);
   }
 };
+
+// GET /api/ads/ad-groups/:customerId
+// Returns all ad groups for the account
+export const getAdGroups = async (req: Request, res: Response) => {
+  try {
+    const customerId = Array.isArray(req.params.customerId)
+      ? req.params.customerId[0]
+      : req.params.customerId;
+    const loginCustomerId = Array.isArray(req.query.loginCustomerId)
+      ? (req.query.loginCustomerId as string[])[0]
+      : (req.query.loginCustomerId as string);
+
+    const refreshToken = await getRefreshToken();
+
+    if (!refreshToken) {
+      res.status(401).json({ error: "Not connected" });
+      return;
+    }
+
+    const client = getClient();
+    const customer = client.Customer({
+      customer_id: customerId,
+      login_customer_id: loginCustomerId || customerId,
+      refresh_token: refreshToken,
+    });
+
+    const adGroups = await customer.query(`
+      SELECT
+        ad_group.id,
+        ad_group.name,
+        ad_group.status,
+        campaign.id,
+        campaign.name
+      FROM ad_group
+      ORDER BY ad_group.name ASC
+    `);
+
+    const formattedAdGroups = adGroups.map((row: any) => ({
+      id: row.ad_group?.id,
+      name: row.ad_group?.name,
+      status: row.ad_group?.status,
+      campaignId: row.campaign?.id,
+      campaignName: row.campaign?.name,
+    }));
+
+    res.json({ success: true, data: formattedAdGroups });
+  } catch (error: any) {
+    handleGoogleAdsError(error, res);
+  }
+};
+
+// GET /api/ads/keywords/:customerId
+// Returns keywords with metrics
+export const getKeywords = async (req: Request, res: Response) => {
+  try {
+    const customerId = Array.isArray(req.params.customerId)
+      ? req.params.customerId[0]
+      : req.params.customerId;
+    const loginCustomerId = Array.isArray(req.query.loginCustomerId)
+      ? (req.query.loginCustomerId as string[])[0]
+      : (req.query.loginCustomerId as string);
+    const adGroupId = req.query.adGroupId as string | undefined;
+
+    const refreshToken = await getRefreshToken();
+
+    if (!refreshToken) {
+      res.status(401).json({ error: "Not connected" });
+      return;
+    }
+
+    const client = getClient();
+    const customer = client.Customer({
+      customer_id: customerId,
+      login_customer_id: loginCustomerId || customerId,
+      refresh_token: refreshToken,
+    });
+
+    let whereClause = "WHERE segments.date DURING LAST_30_DAYS";
+    if (adGroupId) {
+      whereClause += ` AND ad_group.id = ${adGroupId}`;
+    }
+
+    const keywords = await customer.query(`
+      SELECT
+        ad_group_criterion.criterion_id,
+        ad_group_criterion.keyword.text,
+        ad_group_criterion.keyword.match_type,
+        ad_group_criterion.status,
+        ad_group_criterion.negative,
+        ad_group.id,
+        ad_group.name,
+        metrics.clicks,
+        metrics.impressions,
+        metrics.ctr,
+        metrics.cost_micros
+      FROM keyword_view
+      ${whereClause}
+      ORDER BY metrics.clicks DESC
+    `);
+
+    const formattedKeywords = keywords.map((row: any) => ({
+      id: row.ad_group_criterion?.criterion_id,
+      keyword: row.ad_group_criterion?.keyword?.text,
+      matchType: row.ad_group_criterion?.keyword?.match_type,
+      status: row.ad_group_criterion?.status,
+      isNegative: row.ad_group_criterion?.negative || false,
+      adGroupId: row.ad_group?.id,
+      adGroupName: row.ad_group?.name,
+      metrics: {
+        clicks: Number(row.metrics?.clicks || 0),
+        impressions: Number(row.metrics?.impressions || 0),
+        ctr: Number(row.metrics?.ctr || 0),
+        cost: Number(row.metrics?.cost_micros || 0) / 1_000_000,
+      },
+    }));
+
+    res.json({ success: true, data: formattedKeywords });
+  } catch (error: any) {
+    handleGoogleAdsError(error, res);
+  }
+};
+
+// GET /api/ads/ads/:customerId
+// Returns ads with metrics
+export const getAds = async (req: Request, res: Response) => {
+  try {
+    const customerId = Array.isArray(req.params.customerId)
+      ? req.params.customerId[0]
+      : req.params.customerId;
+    const loginCustomerId = Array.isArray(req.query.loginCustomerId)
+      ? (req.query.loginCustomerId as string[])[0]
+      : (req.query.loginCustomerId as string);
+    const adGroupId = req.query.adGroupId as string | undefined;
+
+    const refreshToken = await getRefreshToken();
+
+    if (!refreshToken) {
+      res.status(401).json({ error: "Not connected" });
+      return;
+    }
+
+    const client = getClient();
+    const customer = client.Customer({
+      customer_id: customerId,
+      login_customer_id: loginCustomerId || customerId,
+      refresh_token: refreshToken,
+    });
+
+    let whereClause = "WHERE segments.date DURING LAST_30_DAYS";
+    if (adGroupId) {
+      whereClause += ` AND ad_group.id = ${adGroupId}`;
+    }
+
+    const ads = await customer.query(`
+      SELECT
+        ad_group_ad.ad.id,
+        ad_group_ad.ad.name,
+        ad_group_ad.ad.type,
+        ad_group_ad.ad.final_urls,
+        ad_group_ad.ad.responsive_search_ad.headlines,
+        ad_group_ad.ad.responsive_search_ad.descriptions,
+        ad_group_ad.status,
+        ad_group.id,
+        ad_group.name,
+        campaign.id,
+        campaign.name,
+        metrics.clicks,
+        metrics.impressions,
+        metrics.ctr,
+        metrics.conversions,
+        metrics.cost_micros
+      FROM ad_group_ad
+      ${whereClause}
+      ORDER BY metrics.impressions DESC
+    `);
+
+    const formattedAds = ads.map((row: any) => {
+      const ad = row.ad_group_ad?.ad;
+      const headlines = ad?.responsive_search_ad?.headlines || [];
+      const descriptions = ad?.responsive_search_ad?.descriptions || [];
+
+      return {
+        id: ad?.id,
+        name: ad?.name,
+        type: ad?.type,
+        finalUrls: ad?.final_urls || [],
+        headlines: headlines.map((h: any) => h.text),
+        descriptions: descriptions.map((d: any) => d.text),
+        status: row.ad_group_ad?.status,
+        adGroupId: row.ad_group?.id,
+        adGroupName: row.ad_group?.name,
+        campaignId: row.campaign?.id,
+        campaignName: row.campaign?.name,
+        metrics: {
+          clicks: Number(row.metrics?.clicks || 0),
+          impressions: Number(row.metrics?.impressions || 0),
+          ctr: Number(row.metrics?.ctr || 0),
+          conversions: Number(row.metrics?.conversions || 0),
+          cost: Number(row.metrics?.cost_micros || 0) / 1_000_000,
+        },
+      };
+    });
+
+    res.json({ success: true, data: formattedAds });
+  } catch (error: any) {
+    handleGoogleAdsError(error, res);
+  }
+};
