@@ -16,4 +16,8 @@ router.get('/ads/campaigns', ads_controller_1.getCampaignAnalytics);
 router.get('/ads/overview', ads_controller_1.getCampaignOverview);
 router.get('/ads/campaigns/:customerId', ads_controller_1.getCampaignAnalytics);
 router.get('/ads/overview/:customerId', ads_controller_1.getCampaignOverview);
+router.get('/ads/ad-groups/:customerId', ads_controller_1.getAdGroups);
+router.get('/ads/keywords/:customerId', ads_controller_1.getKeywords);
+router.get('/ads/ads/:customerId', ads_controller_1.getAds);
+router.get('/ads/assets/:customerId', ads_controller_1.getAssetGroupAssets);
 exports.default = router;

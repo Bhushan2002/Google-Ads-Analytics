@@ -6,6 +6,9 @@ import OverviewCards from "./OverviewCards";
 import ClicksChart from "./ClicksChart";
 import ImpressionsChart from "./ImpressionsChart";
 import CampaignTable from "./CampaignTable";
+import KeywordsTable from "./KeywordsTable";
+import AdsTable from "./AdsTable";
+import AssetGroupTable from "./AssetGroupTable";
 
 const API_BASE = "http://localhost:9000/api";
 
@@ -48,6 +51,30 @@ interface Account {
   loginCustomerId: string;
 }
 
+interface AssetGroupAsset {
+  id?: string | number;
+  name?: string;
+  type?: string;
+  fieldType?: string;
+  status?: string;
+  performanceLabel?: string;
+  assetGroupId?: string | number;
+  assetGroupName?: string;
+  assetGroupStatus?: string;
+  text?: string;
+  imageUrl?: string;
+  imageWidth?: number;
+  imageHeight?: number;
+  lastUpdated?: string;
+  metrics: {
+    clicks: number;
+    impressions: number;
+    conversions: number;
+    conversionValue: number;
+    cost: number;
+  };
+}
+
 interface DashboardViewProps {
   isConnected?: boolean;
 }
@@ -59,6 +86,13 @@ export default function DashboardView({
   const [selectedAccount, setSelectedAccount] = useState<string>("");
   const [overview, setOverview] = useState<OverviewData | null>(null);
   const [campaigns, setCampaigns] = useState<any[]>([]);
+  const [keywords, setKeywords] = useState<any[]>([]);
+  const [ads, setAds] = useState<any[]>([]);
+  const [adGroups, setAdGroups] = useState<any[]>([]);
+  const [assetGroupAssets, setAssetGroupAssets] = useState<AssetGroupAsset[]>(
+    [],
+  );
+  const [selectedAdGroupId, setSelectedAdGroupId] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [errorType, setErrorType] = useState<string | null>(null);
@@ -111,15 +145,35 @@ export default function DashboardView({
 
     const overviewUrl = `${API_BASE}/ads/overview/${id}?loginCustomerId=${loginCustomerId}`;
     const campaignsUrl = `${API_BASE}/ads/campaigns/${id}?loginCustomerId=${loginCustomerId}`;
+    const keywordsUrl = `${API_BASE}/ads/keywords/${id}?loginCustomerId=${loginCustomerId}`;
+    const adsUrl = `${API_BASE}/ads/ads/${id}?loginCustomerId=${loginCustomerId}`;
+    const adGroupsUrl = `${API_BASE}/ads/ad-groups/${id}?loginCustomerId=${loginCustomerId}`;
+    const assetsUrl = `${API_BASE}/ads/assets/${id}?loginCustomerId=${loginCustomerId}`;
 
     try {
-      const [overviewRes, campaignsRes] = await Promise.all([
-        fetch(overviewUrl),
-        fetch(campaignsUrl),
-      ]);
+      const [
+        overviewRes,
+        campaignsRes,
+        keywordsRes,
+        adsRes,
+        adGroupsRes,
+        assetsRes,
+      ] =
+        await Promise.all([
+          fetch(overviewUrl),
+          fetch(campaignsUrl),
+          fetch(keywordsUrl),
+          fetch(adsUrl),
+          fetch(adGroupsUrl),
+          fetch(assetsUrl),
+        ]);
 
       const overviewJson = await overviewRes.json();
       const campaignsJson = await campaignsRes.json();
+      const keywordsJson = await keywordsRes.json();
+      const adsJson = await adsRes.json();
+      const adGroupsJson = await adGroupsRes.json();
+      const assetsJson = await assetsRes.json();
 
       if (!overviewRes.ok || !overviewJson.success) {
         setErrorType(overviewJson.errorType || null);
@@ -137,9 +191,19 @@ export default function DashboardView({
             "Failed to fetch campaigns",
         );
       }
+      if (!assetsRes.ok || !assetsJson.success) {
+        setErrorType(assetsJson.errorType || null);
+        throw new Error(
+          assetsJson.message || assetsJson.error || "Failed to fetch assets",
+        );
+      }
 
       setOverview(overviewJson.data);
       setCampaigns(campaignsJson.data || []);
+      setKeywords(keywordsJson.data || []);
+      setAds(adsJson.data || []);
+      setAdGroups(adGroupsJson.data || []);
+      setAssetGroupAssets(assetsJson.data || []);
     } catch (err: any) {
       console.error("Dashboard fetch error:", err);
       setError(err.message || "Failed to load data");
@@ -448,20 +512,37 @@ export default function DashboardView({
                 <h2 className="text-lg font-semibold text-gray-800">
                   Overview
                 </h2>
-                <OverviewCards
-                  totals={overview.totals}
-                  daily={overview.daily}
-                />
+
+                <CampaignTable campaigns={campaigns} />
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <KeywordsTable keywords={keywords} />
+                  <AdsTable
+                    ads={
+                      selectedAdGroupId
+                        ? ads.filter(
+                            (a) => String(a.adGroupId) === selectedAdGroupId,
+                          )
+                        : ads
+                    }
+                    adGroups={adGroups}
+                    selectedAdGroupId={selectedAdGroupId}
+                    onAdGroupChange={setSelectedAdGroupId}
+                  />
+
+                  {/* <OverviewCards
+                    totals={overview.totals}
+                    daily={overview.daily}
+                  /> */}
+                </div>
+                <AssetGroupTable
+                  assets={assetGroupAssets}
+                  loading={loading}
+                />
+                <div className="grid grid-cols-2 gap-4">
                   <ClicksChart daily={overview.daily} />
                   <ImpressionsChart daily={overview.daily} />
                 </div>
-
-                <h2 className="text-lg font-semibold text-gray-800 pt-2">
-                  Details
-                </h2>
-                <CampaignTable campaigns={campaigns} />
               </>
             )}
           </>
