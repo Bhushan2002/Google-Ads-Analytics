@@ -273,3 +273,138 @@ export const getCampaignOverview = async (req: Request, res: Response) => {
     handleGoogleAdsError(error, res);
   }
 };
+
+// GET /api/ads/keywords/:customerId
+// Returns keyword metrics for the last 30 days
+export const getKeywordsAnalytics = async (req: Request, res: Response) => {
+  try {
+    const customerId = Array.isArray(req.params.customerId) ? req.params.customerId[0] : req.params.customerId;
+    const loginCustomerId = Array.isArray(req.query.loginCustomerId) ? (req.query.loginCustomerId as string[])[0] : (req.query.loginCustomerId as string);
+    const refreshToken = await getRefreshToken();
+
+    if (!refreshToken) {
+      res.status(401).json({ error: "Not connected" });
+      return;
+    }
+
+    const client = getClient();
+    const customer = client.Customer({
+      customer_id: customerId,
+      login_customer_id: loginCustomerId || customerId,
+      refresh_token: refreshToken,
+    });
+
+    const keywords = await customer.query(`
+      SELECT 
+        ad_group_criterion.keyword.text, 
+        ad_group_criterion.keyword.match_type,
+        ad_group_criterion.status,
+        metrics.clicks, 
+        metrics.impressions,
+        metrics.ctr,
+        metrics.average_cpc,
+        metrics.cost_micros
+      FROM keyword_view
+      WHERE segments.date DURING LAST_30_DAYS
+        AND ad_group_criterion.status != 'REMOVED'
+      ORDER BY metrics.clicks DESC
+      LIMIT 100
+    `);
+
+    res.json({ success: true, data: keywords });
+  } catch (error: any) {
+    handleGoogleAdsError(error, res);
+  }
+};
+
+// GET /api/ads/ads/:customerId
+// Returns ad metrics for the last 30 days
+export const getAdsAnalytics = async (req: Request, res: Response) => {
+  try {
+    const customerId = Array.isArray(req.params.customerId) ? req.params.customerId[0] : req.params.customerId;
+    const loginCustomerId = Array.isArray(req.query.loginCustomerId) ? (req.query.loginCustomerId as string[])[0] : (req.query.loginCustomerId as string);
+    const refreshToken = await getRefreshToken();
+
+    if (!refreshToken) {
+      res.status(401).json({ error: "Not connected" });
+      return;
+    }
+
+    const client = getClient();
+    const customer = client.Customer({
+      customer_id: customerId,
+      login_customer_id: loginCustomerId || customerId,
+      refresh_token: refreshToken,
+    });
+
+    const ads = await customer.query(`
+      SELECT
+        ad_group_ad.ad.id,
+        ad_group_ad.ad.name,
+        ad_group_ad.status,
+        ad_group_ad.ad.type,
+        ad_group_ad.ad.final_urls,
+        ad_group_ad.ad.responsive_search_ad.headlines,
+        ad_group_ad.ad.responsive_search_ad.descriptions,
+        ad_group.id,
+        ad_group.name,
+        metrics.clicks,
+        metrics.impressions,
+        metrics.ctr,
+        metrics.average_cpc,
+        metrics.cost_micros,
+        metrics.conversions
+      FROM ad_group_ad
+      WHERE segments.date DURING LAST_30_DAYS
+        AND ad_group_ad.status != 'REMOVED'
+      ORDER BY metrics.clicks DESC
+      LIMIT 100
+    `);
+
+    // Add mapped adGroupId prop for easier filtering on frontend
+    const mappedAds = ads.map((ad: any) => ({
+      ...ad,
+      adGroupId: ad.ad_group?.id || ''
+    }));
+
+    res.json({ success: true, data: mappedAds });
+  } catch (error: any) {
+    handleGoogleAdsError(error, res);
+  }
+};
+
+// GET /api/ads/ad-groups/:customerId
+// Returns ad groups
+export const getAdGroupsAnalytics = async (req: Request, res: Response) => {
+  try {
+    const customerId = Array.isArray(req.params.customerId) ? req.params.customerId[0] : req.params.customerId;
+    const loginCustomerId = Array.isArray(req.query.loginCustomerId) ? (req.query.loginCustomerId as string[])[0] : (req.query.loginCustomerId as string);
+    const refreshToken = await getRefreshToken();
+
+    if (!refreshToken) {
+      res.status(401).json({ error: "Not connected" });
+      return;
+    }
+
+    const client = getClient();
+    const customer = client.Customer({
+      customer_id: customerId,
+      login_customer_id: loginCustomerId || customerId,
+      refresh_token: refreshToken,
+    });
+
+    const adGroups = await customer.query(`
+      SELECT 
+        ad_group.id, 
+        ad_group.name, 
+        ad_group.status
+      FROM ad_group
+      WHERE ad_group.status != 'REMOVED'
+      LIMIT 100
+    `);
+
+    res.json({ success: true, data: adGroups });
+  } catch (error: any) {
+    handleGoogleAdsError(error, res);
+  }
+};
