@@ -65,7 +65,7 @@ export default function KeywordsTable({ keywords }: KeywordsTableProps) {
   return (
     <div className="bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-md transition-shadow duration-200 h-full flex flex-col">
       <div className="p-6 pb-4 border-b border-gray-100">
-        <h3 className="text-lg font-semibold text-gray-900">Keyword Performance</h3>
+        <h3 className="text-lg font-semibold text-gray-900">Keywords</h3>
         <p className="text-xs text-gray-400 mt-1">Top keywords by metrics for the selected account</p>
       </div>
       <div className="overflow-x-auto flex-1">
@@ -100,9 +100,9 @@ export default function KeywordsTable({ keywords }: KeywordsTableProps) {
                       {status.label}
                     </span>
                   </td>
-                  <td className="py-3 px-4 text-right font-medium text-gray-700">{formatNumber(clicks)}</td>
+                  <td className="py-3 px-4 text-right font-medium text-gray-700">{formatNumber(clicks)}</td>  
                   <td className="py-3 px-4 text-right font-medium text-gray-700">{formatNumber(impressions)}</td>
-                  <td className="py-3 px-4 text-right font-medium text-gray-700">${formatNumber(cost)}</td>
+                  <td className="py-3 px-4 text-right font-medium text-gray-700">₹{formatNumber(cost)}</td>
                 </tr>
               );
             })}

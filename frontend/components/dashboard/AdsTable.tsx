@@ -127,10 +127,10 @@ export default function AdsTable({ ads, adGroups, selectedAdGroupId, onAdGroupCh
   });
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-md transition-shadow duration-200 h-full flex flex-col min-w-0">
-      <div className="p-6 pb-4 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-md transition-shadow duration-200 flex flex-col h-[500px]">
+      <div className="p-6 pb-4 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4 flex-shrink-0">
         <div>
-          <h3 className="text-lg font-semibold text-gray-900">Ads Performance</h3>
+          <h3 className="text-lg font-semibold text-gray-900">Ads</h3>
           <p className="text-xs text-gray-400 mt-1">Details by ad group</p>
         </div>
         
@@ -161,10 +161,10 @@ export default function AdsTable({ ads, adGroups, selectedAdGroupId, onAdGroupCh
           <p className="text-gray-400 text-sm">No ads data available</p>
         </div>
       ) : (
-        <div className="overflow-x-auto flex-1">
-          <table className="w-full text-sm">
+        <div className="flex-1 overflow-auto">
+          <table className="w-full text-sm border-collapse">
             <thead>
-              <tr className="border-b border-gray-100 bg-gray-50/60 sticky top-0">
+              <tr className="border-b border-gray-100 bg-gray-50/60 sticky top-0 z-10 shadow-sm">
                
                 <th className="text-left py-3 px-2 font-medium text-gray-500 text-xs uppercase tracking-wider min-w-[280px]">Ad</th>
                 <th className="text-left py-3 px-4 font-medium text-gray-500 text-xs uppercase tracking-wider">Ad group</th>
@@ -227,9 +227,7 @@ export default function AdsTable({ ads, adGroups, selectedAdGroupId, onAdGroupCh
                               {descriptions[0]}
                             </div>
                           )}
-                          <div className="text-blue-600 text-xs flex items-center gap-1.5 opacity-90 mt-1.5">
-                            <span className="hover:underline cursor-pointer">View details</span>
-                          </div>
+                          
                         </div>
                       </div>
                     </td>

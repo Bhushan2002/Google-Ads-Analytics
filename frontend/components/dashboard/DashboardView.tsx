@@ -9,6 +9,9 @@ import CampaignTable from "./CampaignTable";
 import AssetGroupTable from "./AssetGroupTable";
 import KeywordsTable from "./KeywordsTable";
 import AdsTable from "./AdsTable";
+import AdGroupTable from "./AdGroupTable";
+import { Loader, Loader2 } from "lucide-react";
+import CampaignSettingsTable from "./CampaignSettings";
 
 const API_BASE = "http://localhost:9000/api";
 
@@ -125,15 +128,21 @@ export default function DashboardView({
     const assetsUrl = `${API_BASE}/ads/assets/${id}?loginCustomerId=${loginCustomerId}`;
 
     try {
-      const [overviewRes, campaignsRes, keywordsRes, adsRes, adGroupsRes, assetsRes] =
-        await Promise.all([
-          fetch(overviewUrl),
-          fetch(campaignsUrl),
-          fetch(keywordsUrl),
-          fetch(adsUrl),
-          fetch(adGroupsUrl),
-          fetch(assetsUrl),
-        ]);
+      const [
+        overviewRes,
+        campaignsRes,
+        keywordsRes,
+        adsRes,
+        adGroupsRes,
+        assetsRes,
+      ] = await Promise.all([
+        fetch(overviewUrl),
+        fetch(campaignsUrl),
+        fetch(keywordsUrl),
+        fetch(adsUrl),
+        fetch(adGroupsUrl),
+        fetch(assetsUrl),
+      ]);
 
       const overviewJson = await overviewRes.json();
       const campaignsJson = await campaignsRes.json();
@@ -456,8 +465,8 @@ export default function DashboardView({
 
             {/* Empty/loading state for accounts */}
             {!loading && !error && !overview && accounts.length === 0 && (
-              <div className="bg-white rounded-xl border border-gray-200 p-16 text-center shadow-sm">
-                <div className="text-5xl mb-4">📊</div>
+              <div className="flex flex-col items-center justify-center bg-white rounded-xl border border-gray-200 p-16 text-center shadow-sm">
+                <Loader className="text-5xl mb-4" />
                 <h2 className="text-xl font-semibold text-gray-800 mb-2">
                   Fetching your accounts...
                 </h2>
@@ -474,7 +483,12 @@ export default function DashboardView({
                   Overview
                 </h2>
 
-                <CampaignTable campaigns={campaigns} />
+                {/* <CampaignTable campaigns={campaigns} /> */}
+                {/* Campaigns and Budgets */}
+                <CampaignSettingsTable campaigns={campaigns} />
+
+                {/* ads group table */}
+                <AdGroupTable adGroups={adGroups} />
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   <KeywordsTable keywords={keywords} />

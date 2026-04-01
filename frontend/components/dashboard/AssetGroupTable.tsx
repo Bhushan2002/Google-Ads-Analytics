@@ -55,38 +55,41 @@ function getAssetFieldTypeName(type: string | number): string {
 export default function AssetGroupTable({ assets = [] }: AssetGroupTableProps) {
   const safeAssets = assets || [];
 
+  if (safeAssets.length === 0) {
+    return (
+      <div className="bg-white rounded-xl border border-gray-200 p-8 text-center h-full">
+        <h3 className="text-lg font-semibold text-gray-900 mb-2">Asset Performance</h3>
+        <p className="text-gray-400 text-sm">No asset data available</p>
+      </div>
+    );
+  }
+
   return (
-    <div className="w-full border border-gray-200 rounded-lg bg-white shadow-sm overflow-hidden font-sans">
-      {/* Horizontal scrolling wrapper for smaller screens */}
-      <div className="overflow-x-auto">
-        <table className="w-full text-left border-collapse whitespace-nowrap min-w-[1200px]">
+    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-md transition-shadow duration-200 h-full flex flex-col font-sans">
+      <div className="p-6 pb-4 border-b border-gray-100">
+        <h3 className="text-lg font-semibold text-gray-900">Assets</h3>
+        <p className="text-xs text-gray-400 mt-1">Top assets by metrics for the selected account</p>
+      </div>
+      <div className="overflow-x-auto flex-1">
+        <table className="w-full text-sm">
           {/* Table Header */}
           <thead>
-            <tr className="border-b border-gray-300 bg-white text-xs text-gray-600 font-medium">
-              <th className="py-3 px-2 font-medium">Asset</th>
-              <th className="py-3 px-4 font-medium flex items-center gap-1 cursor-pointer hover:bg-gray-50">
-                Level
-              </th>
-              <th className="py-3 px-4 font-medium">Performance</th>
-              <th className="py-3 px-4 font-medium">Asset type</th>
-              <th className="py-3 px-4 font-medium text-right">Conversions</th>
-              <th className="py-3 px-4 font-medium text-right">Conv. value</th>
-              <th className="py-3 px-4 font-medium text-right">Impr.</th>
-              <th className="py-3 px-4 font-medium text-right">Clicks</th>
-              <th className="py-3 px-4 font-medium text-right">Cost</th>
+            <tr className="border-b border-gray-100 bg-gray-50/60 sticky top-0">
+              <th className="text-left py-3 px-4 font-medium text-gray-500 text-xs uppercase tracking-wider">Asset</th>
+              <th className="text-left py-3 px-4 font-medium text-gray-500 text-xs uppercase tracking-wider">Level</th>
+              <th className="text-left py-3 px-4 font-medium text-gray-500 text-xs uppercase tracking-wider">Performance</th>
+              <th className="text-left py-3 px-4 font-medium text-gray-500 text-xs uppercase tracking-wider">Asset type</th>
+              <th className="text-right py-3 px-4 font-medium text-gray-500 text-xs uppercase tracking-wider">Conv.</th>
+              <th className="text-right py-3 px-4 font-medium text-gray-500 text-xs uppercase tracking-wider">Conv. value</th>
+              <th className="text-right py-3 px-4 font-medium text-gray-500 text-xs uppercase tracking-wider">Impr.</th>
+              <th className="text-right py-3 px-4 font-medium text-gray-500 text-xs uppercase tracking-wider">Clicks</th>
+              <th className="text-right py-3 px-4 font-medium text-gray-500 text-xs uppercase tracking-wider">Cost</th>
             </tr>
           </thead>
 
           {/* Table Body */}
-          <tbody className="text-sm text-gray-700">
-            {safeAssets.length === 0 ? (
-              <tr>
-                <td colSpan={11} className="py-8 text-center text-gray-400">
-                  No asset data available
-                </td>
-              </tr>
-            ) : (
-              safeAssets.map((apiAsset, index) => {
+          <tbody>
+            {safeAssets.map((apiAsset, index) => {
                 const isImage =
                   apiAsset.asset?.type === "IMAGE" ||
                   apiAsset.asset?.type === "3" ||
@@ -124,13 +127,13 @@ export default function AssetGroupTable({ assets = [] }: AssetGroupTableProps) {
                 return (
                   <tr
                     key={index}
-                    className="border-b border-gray-100 hover:bg-gray-50 transition-colors group"
+                    className="border-b border-gray-50 hover:bg-blue-50/30 transition-colors duration-150 group"
                   >
                     {/* Asset Content (Text or Image) */}
-                    <td className="py-4 px-2 align-top max-w-[280px] whitespace-normal">
+                    <td className="py-3 px-4 align-top max-w-[280px] whitespace-normal">
                       <div className="flex items-center gap-2">
                         {assetData.type === "text" ? (
-                          <span className="text-gray-800 leading-snug">
+                          <span className="font-medium text-gray-800 leading-snug">
                             {assetData.text}
                           </span>
                         ) : (
@@ -138,8 +141,8 @@ export default function AssetGroupTable({ assets = [] }: AssetGroupTableProps) {
                             <img
                               src={assetData.imgUrl}
                               alt="Asset preview"
-                              className="object-contain bg-gray-100 border border-gray-200"
-                              style={{ maxHeight: "48px", maxWidth: "80px" }}
+                              className="object-contain bg-gray-50 border border-gray-100 rounded-sm"
+                              style={{ maxHeight: "40px", maxWidth: "60px" }}
                             />
                           </div>
                         )}
@@ -148,40 +151,40 @@ export default function AssetGroupTable({ assets = [] }: AssetGroupTableProps) {
                     </td>
 
                     {/* Other Columns */}
-                    <td className="py-4 px-4 align-top pt-5 text-gray-600">
+                    <td className="py-3 px-4 align-top text-gray-700 font-medium">
                       {assetData.level}
                     </td>
 
-                    <td className="py-4 px-4 align-top pt-4">
-                      <div className="flex flex-col text-gray-600 text-xs">
-                        <span className="capitalize">{assetData.status1}</span>
+                    <td className="py-3 px-4 align-top">
+                      <div className="flex flex-col text-gray-600">
+                        <span className="capitalize text-xs font-semibold px-2 px-1 rounded-full bg-gray-50 inline-block w-fit">{assetData.status1}</span>
                       </div>
                     </td>
 
-                    <td className="py-4 px-4 align-top pt-5 text-gray-600 capitalize">
+                    <td className="py-3 px-4 align-top text-gray-700 font-medium capitalize">
                       {assetData.assetType}
                     </td>
 
                     {/* Metrics */}
-                    <td className="py-4 px-4 align-top pt-5 text-right text-gray-600">
+                    <td className="py-3 px-4 align-top text-right font-medium text-gray-700">
                       {assetData.conv}
                     </td>
-                    <td className="py-4 px-4 align-top pt-5 text-right text-gray-600">
+                    <td className="py-3 px-4 align-top text-right font-medium text-gray-700">
                       {assetData.convVal}
                     </td>
-                    <td className="py-4 px-4 align-top pt-5 text-right text-gray-600">
+                    <td className="py-3 px-4 align-top text-right font-medium text-gray-700">
                       {assetData.impr}
                     </td>
-                    <td className="py-4 px-4 align-top pt-5 text-right text-gray-600">
+                    <td className="py-3 px-4 align-top text-right font-medium text-gray-700">
                       {assetData.clicks}
                     </td>
-                    <td className="py-4 px-4 align-top pt-5 text-right text-gray-600">
+                    <td className="py-3 px-4 align-top text-right font-medium text-gray-700">
                       {assetData.cost}
                     </td>
                   </tr>
                 );
               })
-            )}
+            }
           </tbody>
         </table>
       </div>

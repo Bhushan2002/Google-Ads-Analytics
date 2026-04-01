@@ -168,27 +168,70 @@ export const getCampaignAnalytics = async (req: Request, res: Response) => {
     const client = getClient();
     const customer = client.Customer({
       customer_id: customerId,
-      login_customer_id: loginCustomerId || customerId, // Apply the MCC context
+      login_customer_id: loginCustomerId || customerId, 
       refresh_token: refreshToken,
     });
+
+    // const campaigns = await customer.query(`
+    //   SELECT 
+    //     campaign.id, 
+    //     campaign.name, 
+    //     campaign.status,
+    //     metrics.clicks, 
+    //     metrics.impressions,
+    //     metrics.conversions,
+    //     metrics.ctr,
+    //     metrics.average_cpc,
+    //     metrics.cost_micros
+    //   FROM campaign
+    //   WHERE segments.date DURING LAST_30_DAYS
+    //   ORDER BY metrics.clicks DESC
+    // `);
 
     const campaigns = await customer.query(`
       SELECT 
         campaign.id, 
         campaign.name, 
         campaign.status,
+        campaign.advertising_channel_type,
+        campaign.bidding_strategy_type, 
+        campaign_budget.amount_micros,
+        campaign_budget.delivery_method,
+        campaign.network_settings.target_google_search,
+        campaign.network_settings.target_content_network,
         metrics.clicks, 
         metrics.impressions,
         metrics.conversions,
-        metrics.ctr,
-        metrics.average_cpc,
         metrics.cost_micros
       FROM campaign
       WHERE segments.date DURING LAST_30_DAYS
-      ORDER BY metrics.clicks DESC
+      ORDER BY campaign.name ASC
     `);
 
-    res.json({ success: true, data: campaigns });
+    const populatedCampaigns = campaigns.map((camp: any) => {
+      // Extract structural data for the frontend tables
+      const channelType = camp.campaign?.advertising_channel_type || "UNKNOWN";
+      const bidStrategy = camp.campaign?.bidding_strategy_type || "UNKNOWN";
+      const budgetAmount = (Number(camp.campaign_budget?.amount_micros || 0) / 1000000).toFixed(2);
+
+      // Return real data from API (even if it is 0)
+      return {
+        ...camp,
+        channelType,
+        bidStrategy,
+        budgetAmount,
+        metrics: {
+          clicks: Number(camp.metrics?.clicks || 0),
+          impressions: Number(camp.metrics?.impressions || 0),
+          conversions: Number(camp.metrics?.conversions || 0),
+          ctr: Number(camp.metrics?.ctr || 0),
+          average_cpc: Number(camp.metrics?.average_cpc || 0),
+          cost_micros: Number(camp.metrics?.cost_micros || 0),
+        }
+      };
+    });
+
+    res.json({ success: true, data: populatedCampaigns });
   } catch (error: any) {
     handleGoogleAdsError(error, res);
   }
@@ -249,7 +292,7 @@ export const getCampaignOverview = async (req: Request, res: Response) => {
       }
     }
 
-    const dailyData = (daily || []).map((row: any) => ({
+    const dailyData = daily.map((row: any) => ({
       date: row.segments?.date || "",
       clicks: Number(row.metrics?.clicks || 0),
       impressions: Number(row.metrics?.impressions || 0),
@@ -311,7 +354,18 @@ export const getKeywordsAnalytics = async (req: Request, res: Response) => {
       LIMIT 100
     `);
 
-    res.json({ success: true, data: keywords });
+    const populatedKeywords = keywords.map((kw: any) => ({
+      ...kw,
+      metrics: {
+        clicks: Number(kw.metrics?.clicks || 0),
+        impressions: Number(kw.metrics?.impressions || 0),
+        ctr: Number(kw.metrics?.ctr || 0),
+        average_cpc: Number(kw.metrics?.average_cpc || 0),
+        cost_micros: Number(kw.metrics?.cost_micros || 0),
+      }
+    }));
+
+    res.json({ success: true, data: populatedKeywords });
   } catch (error: any) {
     handleGoogleAdsError(error, res);
   }
@@ -361,10 +415,18 @@ export const getAdsAnalytics = async (req: Request, res: Response) => {
       LIMIT 100
     `);
 
-    // Add mapped adGroupId prop for easier filtering on frontend
+    // Add mapped adGroupId prop and handle metrics
     const mappedAds = ads.map((ad: any) => ({
       ...ad,
-      adGroupId: ad.ad_group?.id || ''
+      adGroupId: ad.ad_group?.id || '',
+      metrics: {
+        clicks: Number(ad.metrics?.clicks || 0),
+        impressions: Number(ad.metrics?.impressions || 0),
+        ctr: Number(ad.metrics?.ctr || 0),
+        average_cpc: Number(ad.metrics?.average_cpc || 0),
+        cost_micros: Number(ad.metrics?.cost_micros || 0),
+        conversions: Number(ad.metrics?.conversions || 0),
+      }
     }));
 
     res.json({ success: true, data: mappedAds });
@@ -397,13 +459,32 @@ export const getAdGroupsAnalytics = async (req: Request, res: Response) => {
       SELECT 
         ad_group.id, 
         ad_group.name, 
-        ad_group.status
+        ad_group.status,
+        campaign.name,
+        metrics.clicks,
+        metrics.impressions,
+        metrics.cost_micros,
+        metrics.conversions
       FROM ad_group
-      WHERE ad_group.status != 'REMOVED'
+      WHERE segments.date DURING LAST_30_DAYS
+        AND ad_group.status != 'REMOVED'
+      ORDER BY metrics.clicks DESC
       LIMIT 100
     `);
 
-    res.json({ success: true, data: adGroups });
+    // Handle metrics
+    const populatedAdGroups = adGroups.map((group: any) => ({
+      ...group,
+      campaign: group.campaign,
+      metrics: {
+        clicks: Number(group.metrics?.clicks || 0),
+        impressions: Number(group.metrics?.impressions || 0),
+        conversions: Number(group.metrics?.conversions || 0),
+        cost_micros: Number(group.metrics?.cost_micros || 0),
+      }
+    }));
+
+    res.json({ success: true, data: populatedAdGroups });
   } catch (error: any) {
     handleGoogleAdsError(error, res);
   }
@@ -450,7 +531,18 @@ export const getAssetsAnalytics = async (req: Request, res: Response) => {
       LIMIT 100
     `);
 
-    res.json({ success: true, data: assets });
+    const populatedAssets = assets.map((asset: any) => ({
+      ...asset,
+      metrics: {
+        clicks: Number(asset.metrics?.clicks || 0),
+        impressions: Number(asset.metrics?.impressions || 0),
+        conversions: Number(asset.metrics?.conversions || 0),
+        conversions_value: Number(asset.metrics?.conversions_value || 0),
+        cost_micros: Number(asset.metrics?.cost_micros || 0),
+      }
+    }));
+
+    res.json({ success: true, data: populatedAssets });
   } catch (error: any) {
     handleGoogleAdsError(error, res);
   }

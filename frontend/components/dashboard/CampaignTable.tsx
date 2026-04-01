@@ -55,6 +55,11 @@ function generateSparkData(clicks: number, impressions: number): { value: number
   }))
 }
 
+function formatCurrency(num: number): string {
+  if (num === 0) return '₹0.00'
+  return `₹${num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+}
+
 export default function CampaignTable({ campaigns }: CampaignTableProps) {
   if (!campaigns || campaigns.length === 0) {
     return (
@@ -113,8 +118,8 @@ export default function CampaignTable({ campaigns }: CampaignTableProps) {
                   <td className="py-3 px-4 text-right font-medium text-gray-700">{formatNumber(clicks)}</td>
                   <td className="py-3 px-4 text-right font-medium text-gray-700">{formatNumber(impressions)}</td>
                   <td className="py-3 px-4 text-right font-medium text-gray-700">{(ctr * 100).toFixed(2)}%</td>
-                  <td className="py-3 px-4 text-right font-medium text-gray-700">${avgCpc.toFixed(2)}</td>
-                  <td className="py-3 px-4 text-right font-medium text-gray-700">${formatNumber(cost)}</td>
+                  <td className="py-3 px-4 text-right font-medium text-gray-700">{formatCurrency(avgCpc)}</td>
+                  <td className="py-3 px-4 text-right font-medium text-gray-700">{formatCurrency(cost)}</td>
                  
                 </tr>
               )
