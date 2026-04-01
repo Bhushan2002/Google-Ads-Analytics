@@ -69,6 +69,7 @@ export default function DashboardView({
   const [ads, setAds] = useState<any[]>([]);
   const [adGroups, setAdGroups] = useState<any[]>([]);
   const [assets, setAssets] = useState<any[]>([]);
+
   const [selectedAdGroupId, setSelectedAdGroupId] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -135,6 +136,7 @@ export default function DashboardView({
         adsRes,
         adGroupsRes,
         assetsRes,
+
       ] = await Promise.all([
         fetch(overviewUrl),
         fetch(campaignsUrl),
@@ -142,6 +144,7 @@ export default function DashboardView({
         fetch(adsUrl),
         fetch(adGroupsUrl),
         fetch(assetsUrl),
+
       ]);
 
       const overviewJson = await overviewRes.json();
@@ -511,10 +514,10 @@ export default function DashboardView({
                   /> */}
                 </div>
                 <AssetGroupTable assets={assets} />
-                <div className="grid grid-cols-2 gap-4  ">
+                {/* <div className="grid grid-cols-2 gap-4  ">
                   <ClicksChart daily={overview.daily} />
                   <ImpressionsChart daily={overview.daily} />
-                </div>
+                </div> */}
               </>
             )}
           </>

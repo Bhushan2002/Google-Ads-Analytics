@@ -547,3 +547,4 @@ export const getAssetsAnalytics = async (req: Request, res: Response) => {
     handleGoogleAdsError(error, res);
   }
 };
+

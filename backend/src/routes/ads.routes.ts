@@ -7,12 +7,14 @@ import {
     getKeywordsAnalytics,
     getAdsAnalytics,
     getAdGroupsAnalytics,
-    getAssetsAnalytics
+    getAssetsAnalytics,
+
 } from '../controller/ads.controller';
 
 const router = Router();
 
 // OAuth Routes
+router.get('/auth/google/url', getAuthUrl);
 router.get('/auth/google/callback', handleGoogleCallback);
 router.get('/google/callback', handleGoogleCallback);
 router.get('/auth/google/status', checkConnection);
